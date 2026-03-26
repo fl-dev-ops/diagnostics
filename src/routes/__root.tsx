@@ -24,6 +24,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   component: RootLayout,
+  notFoundComponent: () => (
+    <main style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto", textAlign: "center" }}>
+      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>404</h1>
+      <p>Page not found.</p>
+      <a href="/" style={{ color: "#333" }}>
+        Go home
+      </a>
+    </main>
+  ),
 });
 
 function RootLayout() {
