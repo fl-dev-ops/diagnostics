@@ -1,72 +1,74 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { authClient } from "#/lib/auth-client";
+import { getSession } from "#/lib/auth.functions";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const session = await getSession();
+    return { session };
+  },
   component: HomePage,
 });
 
 function HomePage() {
-  const { data: session, isPending } = authClient.useSession();
+  const { session } = Route.useRouteContext();
 
   return (
-    <main className="page-wrap px-4 pb-8 pt-14">
-      <section className="island-shell rise-in relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10 sm:py-14">
-        <div className="pointer-events-none absolute -left-20 -top-24 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(79,184,178,0.32),transparent_66%)]" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(47,106,74,0.18),transparent_66%)]" />
-        <p className="island-kicker mb-3">Welcome</p>
-        <h1 className="display-title mb-5 max-w-3xl text-4xl leading-[1.02] font-bold tracking-tight text-[var(--sea-ink)] sm:text-6xl">
-          Diagnostics Platform
-        </h1>
-        <p className="mb-8 max-w-2xl text-base text-[var(--sea-ink-soft)] sm:text-lg">
-          A diagnostic tool platform for managing and analyzing various diagnostic data.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          {isPending ? (
-            <div className="h-10 w-32 bg-neutral-200 animate-pulse rounded-full" />
-          ) : session?.user ? (
-            <div className="flex items-center gap-4">
-              <span className="text-[var(--sea-ink-soft)]">
-                Welcome, {session.user.name || session.user.email}
-              </span>
-            </div>
-          ) : (
-            <>
-              <Link
-                to="/sign-up"
-                className="rounded-full border border-[rgba(50,143,151,0.3)] bg-[rgba(79,184,178,0.14)] px-5 py-2.5 text-sm font-semibold text-[var(--lagoon-deep)] no-underline transition hover:-translate-y-0.5 hover:bg-[rgba(79,184,178,0.24)]"
-              >
-                Get Started
-              </Link>
-              <Link
-                to="/sign-in"
-                className="rounded-full border border-[rgba(23,58,64,0.2)] bg-white/50 px-5 py-2.5 text-sm font-semibold text-[var(--sea-ink)] no-underline transition hover:-translate-y-0.5 hover:border-[rgba(23,58,64,0.35)]"
-              >
-                Sign In
-              </Link>
-            </>
-          )}
-        </div>
-      </section>
+    <main style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+      <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>Diagnostics Platform</h1>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-3">
-        {[
-          ["Real-time Diagnostics", "Monitor system health and performance metrics in real-time."],
-          ["Automated Analysis", "AI-powered analysis to identify issues and recommend solutions."],
-          [
-            "Comprehensive Reports",
-            "Generate detailed reports and export data in multiple formats.",
-          ],
-        ].map(([title, desc], index) => (
-          <article
-            key={title}
-            className="island-shell feature-card rise-in rounded-2xl p-5"
-            style={{ animationDelay: `${index * 90 + 80}ms` }}
+      {session?.user ? (
+        <div>
+          <p>Welcome, {session.user.name || session.user.email}</p>
+          <button
+            onClick={() => authClient.signOut().then(() => window.location.reload())}
+            style={{
+              marginTop: "1rem",
+              padding: "0.5rem 1rem",
+              cursor: "pointer",
+              backgroundColor: "#333",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              fontSize: "1rem",
+            }}
           >
-            <h2 className="mb-2 text-base font-semibold text-[var(--sea-ink)]">{title}</h2>
-            <p className="m-0 text-sm text-[var(--sea-ink-soft)]">{desc}</p>
-          </article>
-        ))}
-      </section>
+            Sign Out
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p>Please log in or register to continue.</p>
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+            <a
+              href="/login"
+              style={{
+                display: "inline-block",
+                padding: "0.75rem 1.5rem",
+                backgroundColor: "#333",
+                color: "#fff",
+                textDecoration: "none",
+                borderRadius: "4px",
+              }}
+            >
+              Login
+            </a>
+            <a
+              href="/register"
+              style={{
+                display: "inline-block",
+                padding: "0.75rem 1.5rem",
+                border: "1px solid #333",
+                color: "#333",
+                textDecoration: "none",
+                borderRadius: "4px",
+              }}
+            >
+              Register
+            </a>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
