@@ -3,6 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { OtpCodeField } from "#/components/otp-code-field";
 import { authClient } from "#/lib/auth-client";
 import { getSession } from "#/lib/auth.functions";
+import {
+  FIXED_COUNTRY_CODE,
+  formatPhoneNumberForDisplay,
+  isLocalPhoneNumberComplete,
+  normalizeLocalPhoneNumber,
+  toE164PhoneNumber,
+} from "#/lib/phone";
 
 export const Route = createFileRoute("/register")({
   beforeLoad: async () => {
@@ -56,8 +63,13 @@ function RegisterPage() {
   }
 
   async function sendOtp() {
+    if (!isLocalPhoneNumberComplete(phone)) {
+      setError("Enter a valid 10-digit mobile number.");
+      return false;
+    }
+
     const { error: otpError } = await authClient.phoneNumber.sendOtp({
-      phoneNumber: phone,
+      phoneNumber: toE164PhoneNumber(phone),
     });
 
     if (otpError) {
@@ -91,7 +103,7 @@ function RegisterPage() {
 
     try {
       const { error: verifyError } = await authClient.phoneNumber.verify({
-        phoneNumber: phone,
+        phoneNumber: toE164PhoneNumber(phone),
         code: otp,
       });
 
@@ -145,7 +157,7 @@ function RegisterPage() {
           <p className="section-copy">
             {step === "phone"
               ? "We will send a one-time code to verify your number."
-              : `We sent a 6-digit code to ${phone}.`}
+              : `We sent a 6-digit code to ${formatPhoneNumberForDisplay(phone)}.`}
           </p>
 
           <div className="content-stack">
@@ -156,18 +168,22 @@ function RegisterPage() {
                 <label className="field-stack">
                   <span className="field-label">WhatsApp number</span>
                   <div className="input-prefix-shell">
-                    <span className="input-prefix-label">Intl</span>
+                    <span className="input-prefix-label">{FIXED_COUNTRY_CODE}</span>
                     <input
                       className="text-input"
                       id="phone"
-                      placeholder="+91 98765 43210"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="9876543210"
                       required
                       type="tel"
                       value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
+                      onChange={(event) => setPhone(normalizeLocalPhoneNumber(event.target.value))}
                     />
                   </div>
-                  <span className="helper-copy">We only use this number for authentication.</span>
+                  <span className="helper-copy">
+                    {FIXED_COUNTRY_CODE} is fixed and will be added automatically.
+                  </span>
                 </label>
 
                 <div className="button-row">
