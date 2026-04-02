@@ -1,5 +1,5 @@
 import type { PreScreeningSetup } from "#/pre-screening/setup";
-import { buildParticipantName } from "#/common/user/participant-name";
+import { buildParticipantName } from "#/shared/user/participant-name";
 
 export const PRE_SCREENING_AGENT_TYPE = "pre_screen_agent" as const;
 

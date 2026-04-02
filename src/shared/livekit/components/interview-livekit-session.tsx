@@ -11,7 +11,7 @@ import {
 import { DisconnectReason, Track } from "livekit-client";
 import { Camera, CameraOff, LoaderCircle, Mic, PhoneOff, SendHorizontal } from "lucide-react";
 import { cn } from "#/lib/utils";
-import type { LiveKitConnectionDetails, LiveKitTranscriptMessage } from "#/common/livekit/types";
+import type { LiveKitConnectionDetails, LiveKitTranscriptMessage } from "#/shared/livekit/types";
 import { getPushToTalkButtonLabel, getControlBarLabel, usePushToTalk } from "../push-to-talk";
 import { normalizeLiveKitTranscriptMessages } from "../utils/transcript";
 import { MicrophonePermissionGate } from "./microphone-permission-gate";

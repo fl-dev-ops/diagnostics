@@ -1,5 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import { prisma } from "#/db.server";
+import { getDiagnosticWebhookReceiver } from "#/diagnostic/livekit.server";
+import { EVALUATION_MODEL_ID, generateEvaluationText } from "#/lib/evaluation/openrouter.server";
 import { asJsonObject, mergeJsonObject, toJsonValue } from "#/pre-screening/pre-screening-metadata";
 import {
   buildPreScreenPrompt,
@@ -14,9 +15,7 @@ import {
   shouldAllowUnverifiedLiveKitWebhook,
 } from "#/pre-screening/livekit.server";
 
-const PRE_SCREEN_REPORT_MODEL = "gemini-2.5-flash";
-
-type LiveKitWebhookEvent = {
+export type LiveKitWebhookEvent = {
   event?: string;
   room?: { name?: string | null } | null;
   participant?: { identity?: string | null; name?: string | null } | null;
@@ -28,40 +27,13 @@ type LiveKitWebhookEvent = {
 };
 
 function getEventRoomName(event: LiveKitWebhookEvent) {
-  return event.egressInfo?.roomName ?? event.room?.name ?? null;
-}
-
-function getAudioUrlFromEvent(event: LiveKitWebhookEvent) {
-  return event.egressInfo?.fileResults?.[0]?.location ?? null;
+  return event.room?.name ?? null;
 }
 
 function isAgentParticipant(event: LiveKitWebhookEvent) {
   const identity = event.participant?.identity?.toLowerCase() ?? "";
   const name = event.participant?.name?.toLowerCase() ?? "";
   return identity.includes("agent") || name.includes("agent");
-}
-
-async function updateSessionFromEgressEvent(roomName: string, event: LiveKitWebhookEvent) {
-  const session = await prisma.preScreenSession.findUnique({
-    where: { roomName },
-  });
-
-  if (!session) {
-    return;
-  }
-
-  const audioUrl = getAudioUrlFromEvent(event);
-  const egressId = event.egressInfo?.egressId ?? session.egressId ?? null;
-
-  await prisma.preScreenSession.update({
-    where: { id: session.id },
-    data: {
-      audioUrl: audioUrl ?? session.audioUrl,
-      egressId,
-      endedAt: session.endedAt ?? new Date(),
-      status: session.status === "REPORT_READY" ? "REPORT_READY" : "COMPLETED",
-    },
-  });
 }
 
 async function markSessionCompleted(roomName: string) {
@@ -91,8 +63,18 @@ export async function parseLiveKitWebhookEvent(request: Request): Promise<LiveKi
   const authHeader = request.headers.get("Authorization");
 
   if (authHeader) {
-    const receiver = getPreScreenWebhookReceiver();
-    return (await receiver.receive(body, authHeader)) as LiveKitWebhookEvent;
+    const receivers = [getPreScreenWebhookReceiver, getDiagnosticWebhookReceiver];
+
+    for (const getReceiver of receivers) {
+      try {
+        const receiver = getReceiver();
+        return (await receiver.receive(body, authHeader)) as LiveKitWebhookEvent;
+      } catch {
+        continue;
+      }
+    }
+
+    throw new Response("Invalid webhook authorization header", { status: 401 });
   }
 
   if (shouldAllowUnverifiedLiveKitWebhook()) {
@@ -152,7 +134,7 @@ async function acquireSessionReportForEvaluation(sessionId: string, options?: { 
   };
 }
 
-function buildGeminiMetadata(input: {
+function buildEvaluationMetadata(input: {
   existing: unknown;
   model?: string;
   evaluationState?: string;
@@ -189,16 +171,16 @@ async function evaluatePreScreenSession(sessionId: string, options?: { force?: b
     return;
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.OPENROUTER_API_KEY) {
     await prisma.preScreenSessionReport.update({
       where: { id: claimed.report.id },
       data: {
         status: "FAILED",
-        errorMessage: "GEMINI_API_KEY is not configured",
+        errorMessage: "OPENROUTER_API_KEY is not configured",
         metadata: toJsonValue(
           mergeJsonObject(claimed.report.metadata, {
             evaluationState: "FAILED",
-            error: "GEMINI_API_KEY is not configured",
+            error: "OPENROUTER_API_KEY is not configured",
           }),
         ),
       },
@@ -206,7 +188,6 @@ async function evaluatePreScreenSession(sessionId: string, options?: { force?: b
     return;
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const transcriptMessages = getPreScreenSessionTranscriptMessages(session.transcript);
   const transcriptPromptText = buildPreScreenTranscriptPromptText(transcriptMessages);
   const draftContext = asJsonObject(session.draft.latestAgentContext);
@@ -224,31 +205,24 @@ async function evaluatePreScreenSession(sessionId: string, options?: { force?: b
       throw new Error("No transcript is available for this session yet");
     }
 
-    const result = await ai.models.generateContent({
-      model: PRE_SCREEN_REPORT_MODEL,
-      config: {
-        temperature: 0,
-      },
-      contents: [
+    const result = await generateEvaluationText({
+      temperature: 0,
+      userContent: [
         {
-          role: "user",
-          parts: [
-            {
-              text: `${prompt}
+          type: "text",
+          text: `${prompt}
 
 Conversation transcript (ordered, includes student and agent):
 ${transcriptPromptText}`,
-            },
-          ],
         },
       ],
     });
 
     const rawResponse = result.text ?? "";
     const reportJson = parsePreScreenReportResponse(rawResponse);
-    const reportMetadata = buildGeminiMetadata({
+    const reportMetadata = buildEvaluationMetadata({
       existing: claimed.report.metadata,
-      model: PRE_SCREEN_REPORT_MODEL,
+      model: EVALUATION_MODEL_ID,
       evaluationState: "READY",
       promptVersion,
       transcriptMessageCount: transcriptMessages.length,
@@ -280,9 +254,9 @@ ${transcriptPromptText}`,
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to evaluate pre-screen session";
-    const failedMetadata = buildGeminiMetadata({
+    const failedMetadata = buildEvaluationMetadata({
       existing: claimed.report.metadata,
-      model: PRE_SCREEN_REPORT_MODEL,
+      model: EVALUATION_MODEL_ID,
       evaluationState: "FAILED",
       promptVersion,
       transcriptMessageCount: transcriptMessages.length,
@@ -323,22 +297,11 @@ export async function triggerPreScreenSessionEvaluation(
   await evaluatePreScreenSession(sessionId, { force: options?.force ?? false });
 }
 
-export async function handleLiveKitWebhookEvent(event: LiveKitWebhookEvent) {
+export async function handlePreScreenLiveKitWebhookEvent(event: LiveKitWebhookEvent) {
   const roomName = getEventRoomName(event);
 
   if (!roomName) {
-    return new Response(JSON.stringify({ success: true, ignored: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  if (event.event === "egress_ended") {
-    await updateSessionFromEgressEvent(roomName, event);
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return;
   }
 
   if (event.event === "room_finished") {
@@ -348,9 +311,4 @@ export async function handleLiveKitWebhookEvent(event: LiveKitWebhookEvent) {
   if (event.event === "participant_left" && isAgentParticipant(event)) {
     await markSessionCompleted(roomName);
   }
-
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
 }

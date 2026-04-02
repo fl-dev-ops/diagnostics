@@ -1,4 +1,4 @@
-import type { LiveKitTranscriptMessage, LiveKitTranscriptRole } from "#/common/livekit/types";
+import type { LiveKitTranscriptMessage, LiveKitTranscriptRole } from "#/shared/livekit/types";
 
 export type PreScreenResearchCategory = "Not Enough" | "Good" | "Strong";
 

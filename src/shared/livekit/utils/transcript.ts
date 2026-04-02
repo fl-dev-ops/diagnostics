@@ -1,5 +1,5 @@
 import type { TextStreamData } from "@livekit/components-react";
-import type { LiveKitTranscriptMessage } from "#/common/livekit/types";
+import type { LiveKitTranscriptMessage } from "#/shared/livekit/types";
 
 export function normalizeLiveKitTranscriptMessages(
   transcriptions: TextStreamData[],

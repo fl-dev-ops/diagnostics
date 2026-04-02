@@ -3,10 +3,11 @@ import {
   buildLiveKitRoomName,
   createLiveKitRoom,
   createLiveKitToken,
+  createLiveKitWebhookReceiver,
   getLiveKitServerUrl,
   startLiveKitRoomRecording,
   type LiveKitServerConfig,
-} from "#/common/livekit/server";
+} from "#/shared/livekit/server";
 
 function getDiagnosticLiveKitConfig(): LiveKitServerConfig {
   return {
@@ -16,10 +17,21 @@ function getDiagnosticLiveKitConfig(): LiveKitServerConfig {
   };
 }
 
+export function isDiagnosticEgressEnabled() {
+  return process.env.DIAGNOSTIC_EGRESS_ENABLED === "true";
+}
+
 export function getDiagnosticLiveKitServerUrl() {
   return getLiveKitServerUrl(
     getDiagnosticLiveKitConfig(),
     "DIAGNOSTIC_LIVEKIT_URL is not configured",
+  );
+}
+
+export function getDiagnosticWebhookReceiver() {
+  return createLiveKitWebhookReceiver(
+    getDiagnosticLiveKitConfig(),
+    "Diagnostic LiveKit webhook credentials are not configured",
   );
 }
 

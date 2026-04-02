@@ -1,12 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { InterviewLiveKitSession } from "#/common/livekit/components/interview-livekit-session";
-import type { DiagnosticConnectionDetails } from "#/diagnostic/types";
+import { InterviewLiveKitSession } from "#/shared/livekit/components/interview-livekit-session";
+import { DiagnosticReportPanel } from "#/diagnostic/components/diagnostic-report-panel";
+import type {
+  DiagnosticConnectionDetails,
+  DiagnosticSessionStatusResponse,
+  DiagnosticTranscriptMessage,
+} from "#/diagnostic/types";
+import { getSessionIdFromUrl, replaceSessionIdInUrl } from "#/shared/url/session-id";
 import { getSession } from "#/lib/auth.functions";
 import { cn } from "#/lib/utils";
 
-type DiagnosticStep = "intro" | "preview" | "session";
-const DIAGNOSTIC_STEPS: DiagnosticStep[] = ["intro", "preview", "session"];
+type DiagnosticStep =
+  | "intro"
+  | "preview"
+  | "session"
+  | "waitingForEvaluation"
+  | "evaluationReady"
+  | "evaluationFailed";
+const DIAGNOSTIC_STEPS: DiagnosticStep[] = [
+  "intro",
+  "preview",
+  "session",
+  "waitingForEvaluation",
+  "evaluationReady",
+  "evaluationFailed",
+];
 
 export const Route = createFileRoute("/diagnostic")({
   beforeLoad: async () => {
@@ -32,8 +51,14 @@ function DiagnosticInterviewPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isPreparingPreview, setIsPreparingPreview] = useState(false);
   const [connection, setConnection] = useState<DiagnosticConnectionDetails | null>(null);
+  const [reportSessionId, setReportSessionId] = useState<string | null>(() =>
+    getSessionIdFromUrl(),
+  );
+  const [reportStatus, setReportStatus] = useState<DiagnosticSessionStatusResponse | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isFinalizingSession, setIsFinalizingSession] = useState(false);
+  const [isRetryingEvaluation, setIsRetryingEvaluation] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const isSessionStep = step === "session" && Boolean(connection);
 
@@ -112,7 +137,11 @@ function DiagnosticInterviewPage() {
     }
 
     setIsConnecting(true);
+    setIsFinalizingSession(false);
     setSessionError(null);
+    replaceSessionIdInUrl(null);
+    setReportSessionId(null);
+    setReportStatus(null);
     stopPreviewStream();
 
     try {
@@ -139,9 +168,104 @@ function DiagnosticInterviewPage() {
     }
   }
 
+  async function handleFinalizeSession(input: {
+    sessionId: string;
+    messages: DiagnosticTranscriptMessage[];
+  }) {
+    setIsFinalizingSession(true);
+    setSessionError(null);
+
+    try {
+      const response = await fetch(`/api/livekit/diagnostic/${input.sessionId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ messages: input.messages }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to finalize diagnostic session.");
+      }
+
+      replaceSessionIdInUrl(input.sessionId);
+      setReportSessionId(input.sessionId);
+      setConnection(null);
+      setReportStatus(null);
+      setStep("waitingForEvaluation");
+      return true;
+    } catch (error) {
+      replaceSessionIdInUrl(null);
+      setReportSessionId(null);
+      setConnection(null);
+      setReportStatus(null);
+      setSessionError(
+        error instanceof Error ? error.message : "Failed to finalize diagnostic session.",
+      );
+      setStep("intro");
+      return false;
+    } finally {
+      setIsFinalizingSession(false);
+    }
+  }
+
+  async function handleRetryEvaluation() {
+    if (!reportSessionId) {
+      return;
+    }
+
+    setIsRetryingEvaluation(true);
+    setSessionError(null);
+
+    try {
+      const response = await fetch(`/api/livekit/diagnostic/${reportSessionId}/retry-evaluation`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to retry evaluation.");
+      }
+
+      setReportStatus((current) =>
+        current
+          ? {
+              ...current,
+              report: current.report
+                ? {
+                    ...current.report,
+                    status: "PROCESSING",
+                    errorMessage: null,
+                  }
+                : null,
+            }
+          : current,
+      );
+      setStep("waitingForEvaluation");
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : "Failed to retry evaluation.");
+    } finally {
+      setIsRetryingEvaluation(false);
+    }
+  }
+
   function handleBack() {
     if (step === "session") {
       setConnection(null);
+      setSessionError(null);
+      setStep("intro");
+      return;
+    }
+
+    if (
+      step === "waitingForEvaluation" ||
+      step === "evaluationReady" ||
+      step === "evaluationFailed"
+    ) {
+      replaceSessionIdInUrl(null);
+      setReportSessionId(null);
+      setReportStatus(null);
       setSessionError(null);
       setStep("intro");
       return;
@@ -156,6 +280,101 @@ function DiagnosticInterviewPage() {
     window.location.href = "/pre-screening";
   }
 
+  useEffect(() => {
+    if (connection || step === "session") {
+      return;
+    }
+
+    const sessionIdFromUrl = getSessionIdFromUrl();
+
+    if (!sessionIdFromUrl) {
+      return;
+    }
+
+    setReportSessionId(sessionIdFromUrl);
+
+    if (step === "intro") {
+      setStep("waitingForEvaluation");
+    }
+  }, [connection, step]);
+
+  useEffect(() => {
+    const activeSessionId = connection?.sessionId ?? reportSessionId;
+    replaceSessionIdInUrl(activeSessionId ?? null);
+  }, [connection?.sessionId, reportSessionId]);
+
+  useEffect(() => {
+    if (!reportSessionId) {
+      return;
+    }
+
+    if (
+      step !== "waitingForEvaluation" &&
+      step !== "evaluationReady" &&
+      step !== "evaluationFailed"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    async function syncReportStatus() {
+      try {
+        const response = await fetch(`/api/livekit/diagnostic/${reportSessionId}`, {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as
+          | DiagnosticSessionStatusResponse
+          | { error?: string };
+
+        if (!response.ok) {
+          const message = "error" in payload ? payload.error : "Failed to load report status.";
+          throw new Error(message);
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const nextStatus = payload as DiagnosticSessionStatusResponse;
+        setReportStatus(nextStatus);
+
+        if (nextStatus.report?.status === "READY") {
+          setStep("evaluationReady");
+          return;
+        }
+
+        if (nextStatus.report?.status === "FAILED") {
+          setSessionError(nextStatus.report.errorMessage || "Evaluation failed.");
+          setStep("evaluationFailed");
+          return;
+        }
+
+        setStep("waitingForEvaluation");
+        timeoutId = window.setTimeout(() => {
+          void syncReportStatus();
+        }, 4000);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setSessionError(error instanceof Error ? error.message : "Failed to load report status.");
+        setStep("evaluationFailed");
+      }
+    }
+
+    void syncReportStatus();
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [reportSessionId, step]);
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_left_bottom,rgba(56,189,248,0.16),transparent_24%),linear-gradient(180deg,#020617,#0f172a)] px-3 font-['Sora',sans-serif] text-slate-100">
       <div
@@ -164,14 +383,16 @@ function DiagnosticInterviewPage() {
           isSessionStep ? "h-dvh overflow-hidden" : "min-h-screen gap-4",
         )}
       >
-        <div className={cn("flex items-center gap-3", isSessionStep ? "shrink-0" : "")}>
-          <button
-            className="inline-flex size-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
-            type="button"
-            onClick={handleBack}
-          >
-            ←
-          </button>
+        <div className={cn("flex items-center", isSessionStep ? "shrink-0" : "gap-3")}>
+          {isSessionStep ? null : (
+            <button
+              className="inline-flex size-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
+              type="button"
+              onClick={handleBack}
+            >
+              ←
+            </button>
+          )}
           <div className="text-lg font-semibold text-slate-300">Diagnostic Interview</div>
         </div>
 
@@ -336,7 +557,7 @@ function DiagnosticInterviewPage() {
             <InterviewLiveKitSession
               key={connection.sessionId}
               connection={connection}
-              pending={isConnecting}
+              pending={isConnecting || isFinalizingSession}
               studentName={firstName(session.user.name)}
               sessionSubtitleFallback="Diagnostic interview"
               experience="diagnostic"
@@ -345,6 +566,7 @@ function DiagnosticInterviewPage() {
                 setSessionError(null);
                 setStep("intro");
               }}
+              onFinalizeSession={handleFinalizeSession}
               onRetry={async () => {
                 await startDiagnosticInterviewSession();
               }}
@@ -354,6 +576,29 @@ function DiagnosticInterviewPage() {
               Connecting to diagnostic interview...
             </section>
           )
+        ) : null}
+
+        {(step === "waitingForEvaluation" ||
+          step === "evaluationReady" ||
+          step === "evaluationFailed") &&
+        reportSessionId ? (
+          <DiagnosticReportPanel
+            status={
+              step === "evaluationReady"
+                ? "ready"
+                : step === "evaluationFailed"
+                  ? "failed"
+                  : "waiting"
+            }
+            report={reportStatus?.report?.reportJson ?? null}
+            errorMessage={sessionError || reportStatus?.report?.errorMessage || null}
+            canRetry={import.meta.env.DEV}
+            isRetrying={isRetryingEvaluation}
+            onRetry={() => {
+              void handleRetryEvaluation();
+            }}
+            onReset={handleBack}
+          />
         ) : null}
       </div>
     </main>
@@ -398,7 +643,14 @@ function getStepFromUrl(): DiagnosticStep | null {
 function resolveStepFromUrl(): DiagnosticStep {
   const urlStep = getStepFromUrl();
 
-  if (!urlStep || urlStep === "session") {
+  if (
+    !urlStep ||
+    urlStep === "session" ||
+    ((urlStep === "waitingForEvaluation" ||
+      urlStep === "evaluationReady" ||
+      urlStep === "evaluationFailed") &&
+      !getSessionIdFromUrl())
+  ) {
     return "intro";
   }
 

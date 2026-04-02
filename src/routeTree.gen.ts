@@ -23,7 +23,9 @@ import { Route as ApiLivekitPreScreeningRouteImport } from './routes/api/livekit
 import { Route as ApiLivekitDiagnosticRouteImport } from './routes/api/livekit/diagnostic'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiLivekitPreScreeningSessionIdRouteImport } from './routes/api/livekit/pre-screening.$sessionId'
+import { Route as ApiLivekitDiagnosticSessionIdRouteImport } from './routes/api/livekit/diagnostic.$sessionId'
 import { Route as ApiLivekitPreScreeningSessionIdRetryEvaluationRouteImport } from './routes/api/livekit/pre-screening.$sessionId.retry-evaluation'
+import { Route as ApiLivekitDiagnosticSessionIdRetryEvaluationRouteImport } from './routes/api/livekit/diagnostic.$sessionId.retry-evaluation'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -96,11 +98,23 @@ const ApiLivekitPreScreeningSessionIdRoute =
     path: '/$sessionId',
     getParentRoute: () => ApiLivekitPreScreeningRoute,
   } as any)
+const ApiLivekitDiagnosticSessionIdRoute =
+  ApiLivekitDiagnosticSessionIdRouteImport.update({
+    id: '/$sessionId',
+    path: '/$sessionId',
+    getParentRoute: () => ApiLivekitDiagnosticRoute,
+  } as any)
 const ApiLivekitPreScreeningSessionIdRetryEvaluationRoute =
   ApiLivekitPreScreeningSessionIdRetryEvaluationRouteImport.update({
     id: '/retry-evaluation',
     path: '/retry-evaluation',
     getParentRoute: () => ApiLivekitPreScreeningSessionIdRoute,
+  } as any)
+const ApiLivekitDiagnosticSessionIdRetryEvaluationRoute =
+  ApiLivekitDiagnosticSessionIdRetryEvaluationRouteImport.update({
+    id: '/retry-evaluation',
+    path: '/retry-evaluation',
+    getParentRoute: () => ApiLivekitDiagnosticSessionIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -113,11 +127,13 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/pre-screening/': typeof PreScreeningIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRoute
+  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRouteWithChildren
   '/api/livekit/pre-screening': typeof ApiLivekitPreScreeningRouteWithChildren
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/livekit': typeof ApiWebhooksLivekitRoute
+  '/api/livekit/diagnostic/$sessionId': typeof ApiLivekitDiagnosticSessionIdRouteWithChildren
   '/api/livekit/pre-screening/$sessionId': typeof ApiLivekitPreScreeningSessionIdRouteWithChildren
+  '/api/livekit/diagnostic/$sessionId/retry-evaluation': typeof ApiLivekitDiagnosticSessionIdRetryEvaluationRoute
   '/api/livekit/pre-screening/$sessionId/retry-evaluation': typeof ApiLivekitPreScreeningSessionIdRetryEvaluationRoute
 }
 export interface FileRoutesByTo {
@@ -129,11 +145,13 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/pre-screening': typeof PreScreeningIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRoute
+  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRouteWithChildren
   '/api/livekit/pre-screening': typeof ApiLivekitPreScreeningRouteWithChildren
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/livekit': typeof ApiWebhooksLivekitRoute
+  '/api/livekit/diagnostic/$sessionId': typeof ApiLivekitDiagnosticSessionIdRouteWithChildren
   '/api/livekit/pre-screening/$sessionId': typeof ApiLivekitPreScreeningSessionIdRouteWithChildren
+  '/api/livekit/diagnostic/$sessionId/retry-evaluation': typeof ApiLivekitDiagnosticSessionIdRetryEvaluationRoute
   '/api/livekit/pre-screening/$sessionId/retry-evaluation': typeof ApiLivekitPreScreeningSessionIdRetryEvaluationRoute
 }
 export interface FileRoutesById {
@@ -147,11 +165,13 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/pre-screening/': typeof PreScreeningIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRoute
+  '/api/livekit/diagnostic': typeof ApiLivekitDiagnosticRouteWithChildren
   '/api/livekit/pre-screening': typeof ApiLivekitPreScreeningRouteWithChildren
   '/api/trpc/$': typeof ApiTrpcSplatRoute
   '/api/webhooks/livekit': typeof ApiWebhooksLivekitRoute
+  '/api/livekit/diagnostic/$sessionId': typeof ApiLivekitDiagnosticSessionIdRouteWithChildren
   '/api/livekit/pre-screening/$sessionId': typeof ApiLivekitPreScreeningSessionIdRouteWithChildren
+  '/api/livekit/diagnostic/$sessionId/retry-evaluation': typeof ApiLivekitDiagnosticSessionIdRetryEvaluationRoute
   '/api/livekit/pre-screening/$sessionId/retry-evaluation': typeof ApiLivekitPreScreeningSessionIdRetryEvaluationRoute
 }
 export interface FileRouteTypes {
@@ -170,7 +190,9 @@ export interface FileRouteTypes {
     | '/api/livekit/pre-screening'
     | '/api/trpc/$'
     | '/api/webhooks/livekit'
+    | '/api/livekit/diagnostic/$sessionId'
     | '/api/livekit/pre-screening/$sessionId'
+    | '/api/livekit/diagnostic/$sessionId/retry-evaluation'
     | '/api/livekit/pre-screening/$sessionId/retry-evaluation'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -186,7 +208,9 @@ export interface FileRouteTypes {
     | '/api/livekit/pre-screening'
     | '/api/trpc/$'
     | '/api/webhooks/livekit'
+    | '/api/livekit/diagnostic/$sessionId'
     | '/api/livekit/pre-screening/$sessionId'
+    | '/api/livekit/diagnostic/$sessionId/retry-evaluation'
     | '/api/livekit/pre-screening/$sessionId/retry-evaluation'
   id:
     | '__root__'
@@ -203,7 +227,9 @@ export interface FileRouteTypes {
     | '/api/livekit/pre-screening'
     | '/api/trpc/$'
     | '/api/webhooks/livekit'
+    | '/api/livekit/diagnostic/$sessionId'
     | '/api/livekit/pre-screening/$sessionId'
+    | '/api/livekit/diagnostic/$sessionId/retry-evaluation'
     | '/api/livekit/pre-screening/$sessionId/retry-evaluation'
   fileRoutesById: FileRoutesById
 }
@@ -216,7 +242,7 @@ export interface RootRouteChildren {
   ProfileCreatedRoute: typeof ProfileCreatedRoute
   RegisterRoute: typeof RegisterRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiLivekitDiagnosticRoute: typeof ApiLivekitDiagnosticRoute
+  ApiLivekitDiagnosticRoute: typeof ApiLivekitDiagnosticRouteWithChildren
   ApiLivekitPreScreeningRoute: typeof ApiLivekitPreScreeningRouteWithChildren
   ApiTrpcSplatRoute: typeof ApiTrpcSplatRoute
   ApiWebhooksLivekitRoute: typeof ApiWebhooksLivekitRoute
@@ -322,12 +348,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLivekitPreScreeningSessionIdRouteImport
       parentRoute: typeof ApiLivekitPreScreeningRoute
     }
+    '/api/livekit/diagnostic/$sessionId': {
+      id: '/api/livekit/diagnostic/$sessionId'
+      path: '/$sessionId'
+      fullPath: '/api/livekit/diagnostic/$sessionId'
+      preLoaderRoute: typeof ApiLivekitDiagnosticSessionIdRouteImport
+      parentRoute: typeof ApiLivekitDiagnosticRoute
+    }
     '/api/livekit/pre-screening/$sessionId/retry-evaluation': {
       id: '/api/livekit/pre-screening/$sessionId/retry-evaluation'
       path: '/retry-evaluation'
       fullPath: '/api/livekit/pre-screening/$sessionId/retry-evaluation'
       preLoaderRoute: typeof ApiLivekitPreScreeningSessionIdRetryEvaluationRouteImport
       parentRoute: typeof ApiLivekitPreScreeningSessionIdRoute
+    }
+    '/api/livekit/diagnostic/$sessionId/retry-evaluation': {
+      id: '/api/livekit/diagnostic/$sessionId/retry-evaluation'
+      path: '/retry-evaluation'
+      fullPath: '/api/livekit/diagnostic/$sessionId/retry-evaluation'
+      preLoaderRoute: typeof ApiLivekitDiagnosticSessionIdRetryEvaluationRouteImport
+      parentRoute: typeof ApiLivekitDiagnosticSessionIdRoute
     }
   }
 }
@@ -343,6 +383,33 @@ const PreScreeningRouteChildren: PreScreeningRouteChildren = {
 const PreScreeningRouteWithChildren = PreScreeningRoute._addFileChildren(
   PreScreeningRouteChildren,
 )
+
+interface ApiLivekitDiagnosticSessionIdRouteChildren {
+  ApiLivekitDiagnosticSessionIdRetryEvaluationRoute: typeof ApiLivekitDiagnosticSessionIdRetryEvaluationRoute
+}
+
+const ApiLivekitDiagnosticSessionIdRouteChildren: ApiLivekitDiagnosticSessionIdRouteChildren =
+  {
+    ApiLivekitDiagnosticSessionIdRetryEvaluationRoute:
+      ApiLivekitDiagnosticSessionIdRetryEvaluationRoute,
+  }
+
+const ApiLivekitDiagnosticSessionIdRouteWithChildren =
+  ApiLivekitDiagnosticSessionIdRoute._addFileChildren(
+    ApiLivekitDiagnosticSessionIdRouteChildren,
+  )
+
+interface ApiLivekitDiagnosticRouteChildren {
+  ApiLivekitDiagnosticSessionIdRoute: typeof ApiLivekitDiagnosticSessionIdRouteWithChildren
+}
+
+const ApiLivekitDiagnosticRouteChildren: ApiLivekitDiagnosticRouteChildren = {
+  ApiLivekitDiagnosticSessionIdRoute:
+    ApiLivekitDiagnosticSessionIdRouteWithChildren,
+}
+
+const ApiLivekitDiagnosticRouteWithChildren =
+  ApiLivekitDiagnosticRoute._addFileChildren(ApiLivekitDiagnosticRouteChildren)
 
 interface ApiLivekitPreScreeningSessionIdRouteChildren {
   ApiLivekitPreScreeningSessionIdRetryEvaluationRoute: typeof ApiLivekitPreScreeningSessionIdRetryEvaluationRoute
@@ -383,7 +450,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileCreatedRoute: ProfileCreatedRoute,
   RegisterRoute: RegisterRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  ApiLivekitDiagnosticRoute: ApiLivekitDiagnosticRoute,
+  ApiLivekitDiagnosticRoute: ApiLivekitDiagnosticRouteWithChildren,
   ApiLivekitPreScreeningRoute: ApiLivekitPreScreeningRouteWithChildren,
   ApiTrpcSplatRoute: ApiTrpcSplatRoute,
   ApiWebhooksLivekitRoute: ApiWebhooksLivekitRoute,

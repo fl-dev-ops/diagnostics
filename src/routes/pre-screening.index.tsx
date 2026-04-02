@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { PRE_SCREENING_SECTION_CARDS } from "#/pre-screening/config";
 import { PreScreenReportPanel } from "#/pre-screening/components/pre-screen-report-panel";
-import { InterviewLiveKitSession } from "#/common/livekit/components/interview-livekit-session";
+import { InterviewLiveKitSession } from "#/shared/livekit/components/interview-livekit-session";
 import type { PreScreeningConnectionDetails } from "#/pre-screening/types";
 import type {
   PreScreenTranscriptMessage,
@@ -14,6 +14,7 @@ import {
   savePreScreeningSetup,
 } from "#/pre-screening/setup";
 import { usePreScreeningFlow } from "#/pre-screening/flow";
+import { getSessionIdFromUrl, replaceSessionIdInUrl } from "#/shared/url/session-id";
 import { cn } from "#/lib/utils";
 
 const languageOptions = [
@@ -75,31 +76,6 @@ const speedOptions = [
 export const Route = createFileRoute("/pre-screening/")({
   component: PreScreeningPage,
 });
-
-function getSessionIdFromUrl() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const sessionId = new URLSearchParams(window.location.search).get("sessionId");
-  return sessionId && sessionId.length > 0 ? sessionId : null;
-}
-
-function replaceSessionIdInUrl(sessionId: string | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-
-  if (sessionId) {
-    url.searchParams.set("sessionId", sessionId);
-  } else {
-    url.searchParams.delete("sessionId");
-  }
-
-  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
-}
 
 function PreScreeningPage() {
   const { canStart, setup, step, setStep, updateSetup } = usePreScreeningFlow();

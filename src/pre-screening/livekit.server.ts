@@ -5,9 +5,8 @@ import {
   createLiveKitToken,
   createLiveKitWebhookReceiver,
   getLiveKitServerUrl,
-  startLiveKitRoomRecording,
   type LiveKitServerConfig,
-} from "#/common/livekit/server";
+} from "#/shared/livekit/server";
 
 function getPreScreeningLiveKitConfig(): LiveKitServerConfig {
   return {
@@ -52,19 +51,6 @@ export async function createPreScreeningLiveKitToken(input: {
     participantName: input.participantName,
     ttl: "15m",
     notConfiguredMessage: "LiveKit credentials are not configured",
-  });
-}
-
-export async function startPreScreeningRoomRecording(input: {
-  roomName: string;
-  sessionId: string;
-}) {
-  return await startLiveKitRoomRecording({
-    config: getPreScreeningLiveKitConfig(),
-    roomName: input.roomName,
-    sessionId: input.sessionId,
-    filePathPrefix: "pre-screen-sessions",
-    notConfiguredMessage: "LiveKit egress credentials are not configured",
   });
 }
 

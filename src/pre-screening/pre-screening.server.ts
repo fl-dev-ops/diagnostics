@@ -1,5 +1,4 @@
 import { prisma } from "#/db.server";
-import { PRE_SCREENING_AGENT_TYPE } from "#/pre-screening/config";
 import {
   buildPreScreeningParticipantName,
   buildPreScreeningRoomMetadata,
@@ -72,7 +71,6 @@ export async function startPreScreeningSession(input: {
       draftId: draft.id,
       status: "STARTED",
       roomName,
-      agentType: PRE_SCREENING_AGENT_TYPE,
       sessionMetadata: toJsonValue(sessionMetadata),
     },
   });
