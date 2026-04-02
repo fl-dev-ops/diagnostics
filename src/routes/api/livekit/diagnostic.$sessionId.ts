@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { prisma } from "#/db.server";
 import {
-  buildPreScreenSessionTranscript,
-  sanitizePreScreenTranscriptMessages,
-} from "#/pre-screening/pre-screening-transcript";
+  buildDiagnosticSessionTranscript,
+  sanitizeDiagnosticTranscriptMessages,
+} from "#/diagnostic/diagnostic-transcript";
+import { getDiagnosticSessionStatus } from "#/diagnostic/diagnostic.server";
+import { triggerDiagnosticSessionEvaluation } from "#/diagnostic/diagnostic-webhook";
 import { asJsonObject, toJsonValue } from "#/pre-screening/pre-screening-metadata";
-import { triggerPreScreenSessionEvaluation } from "#/pre-screening/pre-screening-webhook";
-import { getPreScreeningSessionStatus } from "#/pre-screening/pre-screening.server";
 import { auth } from "#/lib/auth.server";
 
 export async function getHandler({
@@ -22,16 +22,16 @@ export async function getHandler({
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const preScreenSession = await getPreScreeningSessionStatus({
+  const diagnosticSession = await getDiagnosticSessionStatus({
     sessionId: params.sessionId,
     userId: session.user.id,
   });
 
-  if (!preScreenSession) {
+  if (!diagnosticSession) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
-  return Response.json(preScreenSession);
+  return Response.json(diagnosticSession);
 }
 
 export async function postHandler({
@@ -47,18 +47,20 @@ export async function postHandler({
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const preScreenSession = await prisma.preScreenSession.findUnique({
+  const diagnosticSession = await prisma.diagnosticSession.findUnique({
     where: { id: params.sessionId },
     include: { report: true },
   });
 
-  if (!preScreenSession) {
+  if (!diagnosticSession) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const sessionMetadata = asJsonObject(preScreenSession.sessionMetadata);
+  const sessionMetadata = asJsonObject(diagnosticSession.sessionMetadata);
+  const studentIdFromMetadata =
+    typeof sessionMetadata.studentId === "string" ? sessionMetadata.studentId : null;
 
-  if (sessionMetadata.studentId !== session.user.id) {
+  if (diagnosticSession.userId !== session.user.id && studentIdFromMetadata !== session.user.id) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
@@ -71,7 +73,7 @@ export async function postHandler({
   }
 
   const body = asJsonObject(payload);
-  const messages = sanitizePreScreenTranscriptMessages(body.messages);
+  const messages = sanitizeDiagnosticTranscriptMessages(body.messages);
 
   if (messages.length === 0) {
     return Response.json({ error: "No transcript messages provided" }, { status: 400 });
@@ -79,20 +81,20 @@ export async function postHandler({
 
   const now = new Date();
   const shouldTriggerEvaluation =
-    !preScreenSession.report || preScreenSession.report.status === "PENDING";
+    !diagnosticSession.report || diagnosticSession.report.status === "PENDING";
 
-  await prisma.preScreenSession.update({
-    where: { id: preScreenSession.id },
+  await prisma.diagnosticSession.update({
+    where: { id: diagnosticSession.id },
     data: {
-      transcript: toJsonValue(buildPreScreenSessionTranscript(messages)),
-      endedAt: preScreenSession.endedAt ?? now,
-      status: preScreenSession.status === "REPORT_READY" ? "REPORT_READY" : "COMPLETED",
+      transcript: toJsonValue(buildDiagnosticSessionTranscript(messages)),
+      endedAt: diagnosticSession.endedAt ?? now,
+      status: diagnosticSession.status === "REPORT_READY" ? "REPORT_READY" : "COMPLETED",
     },
   });
 
   if (shouldTriggerEvaluation) {
-    void triggerPreScreenSessionEvaluation(preScreenSession.id).catch((error) => {
-      console.error("[pre-screen finalize] evaluation trigger failed", error);
+    void triggerDiagnosticSessionEvaluation(diagnosticSession.id).catch((error) => {
+      console.error("[diagnostic finalize] evaluation trigger failed", error);
     });
   }
 
@@ -103,7 +105,7 @@ export async function postHandler({
   });
 }
 
-export const Route = createFileRoute("/api/livekit/pre-screening/$sessionId")({
+export const Route = createFileRoute("/api/livekit/diagnostic/$sessionId")({
   server: {
     handlers: {
       GET: getHandler,
