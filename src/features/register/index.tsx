@@ -120,17 +120,12 @@ export function RegisterFlow() {
     <main className="min-h-screen bg-[#464646] px-3 py-3 font-['Sora',system-ui,sans-serif]">
       <div className="mx-auto flex min-h-[calc(100dvh-1.5rem)] w-full max-w-[392px] flex-col">
         {step === "phone" ? (
-          // <PhonePage
-          //   error={error}
-          //   loading={loading}
-          //   phone={phone}
-          //   onPhoneChange={setPhone}
-          //   onSubmit={handlePhoneSubmit}
-          // />
-          <AccountCreatedPage
-            onContinue={() => {
-              window.location.href = "/onboarding";
-            }}
+          <PhonePage
+            error={error}
+            loading={loading}
+            phone={phone}
+            onPhoneChange={setPhone}
+            onSubmit={handlePhoneSubmit}
           />
         ) : null}
 
