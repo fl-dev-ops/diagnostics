@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { cn } from "#/lib/utils";
 import type { NativeLanguage } from "#/pre-screening/setup";
+import { OnboardingShell } from "./shell";
 
 type LanguagePageProps = {
   initialValue: NativeLanguage;
@@ -15,66 +17,82 @@ const languageOptions = [
   { value: "kannada", label: "Kannada", nativeLabel: "ಕನ್ನಡ" },
   { value: "malayalam", label: "Malayalam", nativeLabel: "മലയാളം" },
   { value: "bengali", label: "Bengali", nativeLabel: "বাংলা" },
-] as const satisfies Array<{ value: NativeLanguage; label: string; nativeLabel: string }>;
+] as const satisfies Array<{
+  value: NativeLanguage;
+  label: string;
+  nativeLabel: string;
+}>;
 
 export function LanguagePage(props: LanguagePageProps) {
   const [value, setValue] = useState<NativeLanguage>(props.initialValue);
 
   return (
-    <section className="rounded-3xl border border-slate-800/90 bg-slate-950/85 p-5 text-slate-100 shadow-[0_28px_60px_rgba(2,6,23,0.55)]">
-      <h2 className="text-2xl font-semibold text-slate-50">
-        What&apos;s your <em className="not-italic text-amber-300">native language?</em>
-      </h2>
-      <p className="mt-3 text-sm leading-6 text-slate-300">
-        We&apos;ll use this to personalize the experience during the assessment.
-      </p>
-
-      <div className="mt-5 space-y-2">
+    <OnboardingShell
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <button
+            className="inline-flex h-14 items-center justify-center gap-2 rounded-full bg-[#ece7f2] px-7 text-[0.98rem] font-medium text-[#2d2639]"
+            type="button"
+            onClick={props.onBack}
+          >
+            <IconArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+          <button
+            className="px-10 py-4 ml-auto inline-flex items-center justify-center gap-2 rounded-full bg-[linear-gradient(90deg,#4F33A3_0%,#6A4DF5_100%)] text-[1.05rem] font-medium tracking-[-0.02em] text-white shadow-[0_14px_28px_rgba(93,72,220,0.25)]"
+            type="button"
+            onClick={() => props.onContinue(value)}
+          >
+            Next
+            <IconArrowRight className="h-5 w-5" />
+          </button>
+        </div>
+      }
+      onBack={props.onBack}
+      sectionTitle="Your native language"
+      step={2}
+      subtitle="We'll use this to personalize the interview experience."
+      title="Build your profile"
+    >
+      <div className="space-y-3">
         {languageOptions.map((option) => (
           <button
             key={option.value}
             className={cn(
-              "flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left transition",
+              "flex w-full items-center justify-between rounded-xl border bg-white p-4 py-3 text-left transition",
               value === option.value
-                ? "border-amber-300/50 bg-amber-400/15"
-                : "border-slate-700 bg-slate-900 hover:border-slate-500",
+                ? "border-[#5a42cc] shadow-[0_8px_24px_rgba(90,66,204,0.08)]"
+                : "border-transparent",
             )}
             type="button"
             onClick={() => setValue(option.value)}
           >
-            <div className="text-sm font-semibold text-slate-100">
-              {option.label} <span className="text-slate-400">{option.nativeLabel}</span>
+            <div className="flex items-center gap-4">
+              <div
+                className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-full border-2 transition",
+                  value === option.value
+                    ? "border-[#5a42cc]"
+                    : "border-[#d8d0e1]",
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-3 w-3 rounded-full transition",
+                    value === option.value ? "bg-[#5a42cc]" : "bg-transparent",
+                  )}
+                />
+              </div>
+              <span className="text-[1rem] font-medium text-[#111018]">
+                {option.label}
+              </span>
             </div>
-            <div
-              className={cn(
-                "flex size-6 items-center justify-center rounded-full border text-xs font-semibold",
-                value === option.value
-                  ? "border-amber-300 bg-amber-400 text-slate-950"
-                  : "border-slate-600 text-transparent",
-              )}
-            >
-              ✓
-            </div>
+            <span className="text-[1rem] font-medium text-[#9a98a0]">
+              {option.nativeLabel}
+            </span>
           </button>
         ))}
       </div>
-
-      <div className="mt-5 flex gap-3">
-        <button
-          className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-4 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
-          type="button"
-          onClick={props.onBack}
-        >
-          Back
-        </button>
-        <button
-          className="inline-flex h-12 flex-1 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-400 px-4 text-sm font-semibold text-slate-950 transition hover:bg-amber-300"
-          type="button"
-          onClick={() => props.onContinue(value)}
-        >
-          Next
-        </button>
-      </div>
-    </section>
+    </OnboardingShell>
   );
 }

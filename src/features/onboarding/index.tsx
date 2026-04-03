@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { completeOnboarding } from "#/lib/auth.functions";
-import { savePreScreeningSetup, type EnglishLevel, type NativeLanguage } from "#/pre-screening/setup";
+import {
+  savePreScreeningSetup,
+  type EnglishLevel,
+  type NativeLanguage,
+  type SpeakingSpeed,
+} from "#/pre-screening/setup";
 import { CoachPage, type CoachOption } from "./coach-page";
 import { EnglishLevelPage } from "./english-level-page";
 import { LanguagePage } from "./language-page";
@@ -41,12 +46,17 @@ export function buildInitialProfile(input: {
 
 export function OnboardingFlow(props: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingStep>("profile");
-  const [profile, setProfile] = useState<ProfileFormValue>(props.initialProfile);
+  const [profile, setProfile] = useState<ProfileFormValue>(
+    props.initialProfile,
+  );
   const [coach, setCoach] = useState<CoachOption>("sara");
   const [nativeLanguage, setNativeLanguage] = useState<NativeLanguage>("hindi");
-  const [englishLevel, setEnglishLevel] = useState<EnglishLevel>("intermediate");
+  const [englishLevel, setEnglishLevel] =
+    useState<EnglishLevel>("intermediate");
+  const [speakingSpeed, setSpeakingSpeed] = useState<SpeakingSpeed>("normal");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const firstName = profile.name.trim().split(/\s+/).filter(Boolean)[0] ?? "";
 
   async function handleComplete() {
     setError("");
@@ -57,7 +67,7 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
       savePreScreeningSetup({
         nativeLanguage,
         englishLevel,
-        speakingSpeed: "normal",
+        speakingSpeed,
       });
       window.location.href = "/assessment";
     } catch {
@@ -68,8 +78,8 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_32%),radial-gradient(circle_at_left_bottom,rgba(56,189,248,0.16),transparent_24%),linear-gradient(180deg,#020617,#0f172a)] px-3 font-['Sora',sans-serif] text-slate-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-[420px] flex-col gap-4 px-4 py-6 sm:px-0">
+    <main className="min-h-screen bg-[#F5F3F7]">
+      <div className="mx-auto flex min-h-screen w-full flex-col">
         {step === "profile" ? (
           <ProfilePage
             initialValue={profile}
@@ -82,10 +92,12 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
 
         {step === "coach" ? (
           <CoachPage
+            initialSpeed={speakingSpeed}
             initialValue={coach}
             onBack={() => setStep("profile")}
-            onContinue={(value) => {
+            onContinue={(value, speed) => {
               setCoach(value);
+              setSpeakingSpeed(speed);
               setStep("language");
             }}
           />
@@ -116,10 +128,9 @@ export function OnboardingFlow(props: OnboardingFlowProps) {
         {step === "ready" ? (
           <ReadyPage
             coach={coach}
-            englishLevel={englishLevel}
             error={error}
+            firstName={firstName}
             loading={loading}
-            nativeLanguage={nativeLanguage}
             onBack={() => setStep("english")}
             onContinue={() => {
               void handleComplete();
