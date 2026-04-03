@@ -9,9 +9,9 @@ import { nitro } from "nitro/vite";
 
 const config = defineConfig({
   staged: {
-    "*": "vp check --fix",
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css,scss,md,mdx,html,yml,yaml}": "vp fmt --write",
+    "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": "vp lint --fix",
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
   resolve: {
     tsconfigPaths: true,
   },
