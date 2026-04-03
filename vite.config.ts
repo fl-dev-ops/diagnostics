@@ -10,6 +10,13 @@ import { nitro } from "nitro/vite";
 const isVitest = Boolean(process.env.VITEST);
 
 const config = defineConfig({
+  server: {
+    cors: true,
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
+  },
   staged: {
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts,json,css,scss,md,mdx,html,yml,yaml}": "vp fmt --write",
     "*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": "vp lint --fix",
